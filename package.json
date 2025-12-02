@@ -1,0 +1,44 @@
+{
+  "name": "ai-in-one",
+  "version": "1.0.0",
+  "main": "main.js",
+  "description": "AI IN ONE - Sync chat with multiple AI models",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.hartli.aiinone",
+    "productName": "AI IN ONE",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
+  },
+  "keywords": [],
+  "author": "Hart Li",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^39.2.4",
+    "electron-builder": "^26.0.12"
+  }
+}

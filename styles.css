@@ -1,0 +1,174 @@
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f0f2f5;
+  overflow: hidden;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.webview-grid {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  background-color: #ddd;
+  overflow: hidden;
+  display: none; 
+}
+
+.grid-mode-1 {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.grid-mode-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.grid-mode-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.grid-mode-4 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.webview-wrapper {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.webview-header {
+  height: 24px;
+  background: #e1e4e8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #333;
+  border-bottom: 1px solid #ccc;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reload-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  color: #666;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.reload-btn:hover {
+  color: #007bff;
+}
+
+webview {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.control-panel {
+  height: auto; 
+  background: white;
+  border-top: 1px solid #ccc;
+  display: flex;
+  flex-direction: column; 
+  padding: 10px 20px;
+  gap: 10px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+}
+
+.input-area {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  height: 60px;
+}
+
+textarea.main-input {
+  flex: 1;
+  height: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  resize: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+button.send-btn {
+  width: 100px;
+  height: 100%;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px;
+  transition: background 0.2s;
+}
+
+button.send-btn:hover {
+  background-color: #0056b3;
+}
+
+button.send-btn:active {
+  background-color: #004085;
+}
+
+.model-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  font-size: 14px;
+  color: #333;
+  user-select: none;
+}
+
+.model-selector label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ccc;
+  display: inline-block;
+}
+
+.status-indicator.ready {
+  background-color: #28a745;
+}
