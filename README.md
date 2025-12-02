@@ -1,13 +1,12 @@
 # 🤖 AI IN ONE (聚合AI助手)
 
-![License](https://img.shields.io/badge/license-ISC-blue.svg)
+![License](https://img.shields.io/badge/license-Apache_2.0-blue.svg)
 ![Electron](https://img.shields.io/badge/Electron-33.x-yellow.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)
 
 **AI IN ONE** 是一个基于 Electron 开发的桌面端效率工具，旨在解决多模型并发使用的痛点。它允许你在一个窗口内同时与多个顶尖 AI 模型对话，实现“一次输入，全网分发”，极大地提升了信息对比和获取的效率。
 
-![App Screenshot](https://via.placeholder.com/800x450?text=AI+IN+ONE+Screenshot)
-*(注: 请替换为实际应用截图)*
+![App Screenshot](/assets/images/app_screenshot.png)
 
 ---
 
@@ -108,5 +107,5 @@ npm run build:win
 
 ## 📄 License
 
-[ISC](./LICENSE) © Hart Li
+[Apache-2.0](./LICENSE) © Hart Li
 
