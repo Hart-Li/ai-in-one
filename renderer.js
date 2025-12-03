@@ -3,12 +3,16 @@ const sites = require('./sites');
 const grid = document.getElementById('webview-grid');
 const mainInput = document.getElementById('main-input');
 const sendBtn = document.getElementById('send-btn');
+const copyBtn = document.getElementById('copy-btn');
 const modelSelector = document.getElementById('model-selector');
+const layoutToggle = document.getElementById('layout-toggle');
+const layoutBtn = document.getElementById('layout-btn');
 
 // 状态管理
 const MAX_SELECTED = 4;
 let activeModels = []; 
-const webviewMap = new Map(); 
+const webviewMap = new Map();
+let layoutMode = 'grid'; // 'grid' = 四宫格, 'row' = 平铺 
 
 // 初始化 Checkbox (默认选中 DeepSeek 和 Qwen)
 const defaultNames = ['DeepSeek', '通义千问 (Qwen)'];
@@ -40,17 +44,48 @@ function getOrCreateWebviewWrapper(site) {
   wrapper.className = 'webview-wrapper';
   wrapper.style.display = 'none';
   wrapper.style.order = '9999'; 
+  
+  const safeName = site.name.replace(/[^a-zA-Z0-9-_]/g, '_');
 
   const header = document.createElement('div');
   header.className = 'webview-header';
   header.innerHTML = `
-    <span>${site.name}</span>
+    <div class="header-left" style="display:flex; align-items:center; gap:5px;">
+        <span>${site.name}</span>
+    </div>
     <div class="header-controls">
-        <span id="login-tip-${site.name}" style="font-size:10px; color:#d9534f; display:none;">需要登录?</span>
-        <div class="status-indicator" id="status-${site.name}" title="灰色:加载中/未登录; 绿色:就绪"></div>
-        <button class="reload-btn" id="reload-${site.name}" title="刷新页面">↻</button>
+        <span id="login-tip-${safeName}" style="font-size:10px; color:#d9534f; display:none;">需要登录?</span>
+        <div class="status-indicator" id="status-${safeName}" title="灰色:加载中/未登录; 绿色:就绪"></div>
+        <button class="icon-btn maximize-btn" title="最大化/还原">⤢</button>
+        <button class="icon-btn reload-btn" title="刷新页面">↻</button>
     </div>
   `;
+
+  // 绑定刷新事件 (在创建时绑定，虽然 dom-ready 中也可以，但这里更统一)
+  const reloadBtn = header.querySelector('.reload-btn');
+  if (reloadBtn) {
+      reloadBtn.onclick = () => {
+          const webview = wrapper.querySelector('webview');
+          if (webview) webview.reload();
+      };
+  }
+  
+  // 绑定最大化事件 (移出 dom-ready，确保始终有效)
+  const maximizeBtn = header.querySelector('.maximize-btn');
+  if (maximizeBtn) {
+      maximizeBtn.onclick = () => {
+          const isMaximized = wrapper.classList.toggle('maximized');
+          if (isMaximized) {
+              grid.classList.add('has-maximized');
+              maximizeBtn.textContent = '↙';
+              maximizeBtn.title = '还原';
+          } else {
+              grid.classList.remove('has-maximized');
+              maximizeBtn.textContent = '⤢';
+              maximizeBtn.title = '最大化';
+          }
+      };
+  }
 
   const webview = document.createElement('webview');
   webview.src = site.url;
@@ -60,11 +95,6 @@ function getOrCreateWebviewWrapper(site) {
   webview.allowpopups = true;
   
   webview.addEventListener('dom-ready', () => {
-      // 绑定刷新事件 (注意：dom-ready 可能会触发多次，但我们只需要绑一次，不过这里通过 ID 查找是在 wrapper 内，相对安全)
-      const reloadBtn = header.querySelector(`#reload-${site.name}`);
-      if (reloadBtn) {
-          reloadBtn.onclick = () => webview.reload();
-      }
     const checkLoginScript = `
       setInterval(() => {
         const input = document.querySelector('${site.inputSelector}');
@@ -80,13 +110,13 @@ function getOrCreateWebviewWrapper(site) {
 
   webview.addEventListener('console-message', (e) => {
     if (e.message === 'SyncChat-Status: ready') {
-        const indicator = document.getElementById(`status-${site.name}`);
-        const tip = document.getElementById(`login-tip-${site.name}`);
+        const indicator = document.getElementById(`status-${safeName}`);
+        const tip = document.getElementById(`login-tip-${safeName}`);
         if (indicator) indicator.classList.add('ready');
         if (tip) tip.style.display = 'none';
     } else if (e.message === 'SyncChat-Status: waiting') {
-        const indicator = document.getElementById(`status-${site.name}`);
-        const tip = document.getElementById(`login-tip-${site.name}`);
+        const indicator = document.getElementById(`status-${safeName}`);
+        const tip = document.getElementById(`login-tip-${safeName}`);
         if (indicator) indicator.classList.remove('ready');
         if (tip) tip.style.display = 'inline';
     }
@@ -116,6 +146,11 @@ function handleCheckboxChange(siteName, isChecked, checkboxEl) {
       activeModels.push(siteName);
     }
   } else {
+    if (activeModels.length <= 1 && activeModels.includes(siteName)) {
+      checkboxEl.checked = true;
+      alert('至少需要保留一个模型');
+      return;
+    }
     activeModels = activeModels.filter(n => n !== siteName);
   }
   updateLayout();
@@ -123,11 +158,31 @@ function handleCheckboxChange(siteName, isChecked, checkboxEl) {
 
 // 布局更新
 function updateLayout() {
-  grid.classList.remove('grid-mode-1', 'grid-mode-2', 'grid-mode-3', 'grid-mode-4');
+  grid.classList.remove('grid-mode-1', 'grid-mode-2', 'grid-mode-3', 'grid-mode-4', 'grid');
   
   const count = activeModels.length;
+  
+  // 显示/隐藏布局切换按钮（只在4个模型时显示）
+  if (count === 4) {
+    layoutToggle.style.display = 'flex';
+    // 更新按钮图标
+    layoutBtn.textContent = layoutMode === 'grid' ? '||' : '⊞';
+    layoutBtn.title = layoutMode === 'grid' ? '切换布局：平铺' : '切换布局：四宫格';
+  } else {
+    layoutToggle.style.display = 'none';
+  }
+  
   if (count > 0) {
     grid.classList.add(`grid-mode-${count}`);
+    
+    // 如果是4个模型，根据布局模式添加相应类
+    if (count === 4) {
+      if (layoutMode === 'grid') {
+        grid.classList.add('grid'); // 四宫格布局
+      }
+      // 如果是 'row'，不添加 'grid' 类，使用默认的平铺布局（4列）
+    }
+    
     grid.style.display = 'grid';
   } else {
     grid.style.display = 'none';
@@ -145,7 +200,40 @@ function updateLayout() {
       wrapper.style.order = index + 1;
     }
   });
+
+  // 检查当前激活的模型中是否有最大化的窗口
+  // 如果没有（例如最大化的窗口被取消选中了），则移除 grid 的 has-maximized 类，防止所有窗口被隐藏
+  const hasMaximizedActive = activeModels.some(name => {
+    const wrapper = webviewMap.get(name);
+    return wrapper && wrapper.classList.contains('maximized');
+  });
+
+  if (!hasMaximizedActive) {
+    grid.classList.remove('has-maximized');
+    // 同时清理所有非激活 wrapper 的 maximized 状态，以免下次显示时状态不对（可选，但推荐）
+    webviewMap.forEach((wrapper, name) => {
+        if (!activeModels.includes(name)) {
+            wrapper.classList.remove('maximized');
+            // 还需要重置按钮图标吗？wrapper 里的按钮可能需要重置。
+            // 但由于 wrapper 隐藏了，下次显示时用户也不会立即看到。
+            // 为了完美，最好重置按钮。
+            const maximizeBtn = wrapper.querySelector('.maximize-btn');
+            if (maximizeBtn) {
+                maximizeBtn.textContent = '⤢';
+                maximizeBtn.title = '最大化';
+            }
+        }
+    });
+  }
 }
+
+// 布局切换处理
+layoutBtn.addEventListener('click', () => {
+  if (activeModels.length === 4) {
+    layoutMode = layoutMode === 'grid' ? 'row' : 'grid';
+    updateLayout();
+  }
+});
 
 // 核心发送逻辑: 使用 insertText
 async function sendToAll() {
@@ -274,7 +362,179 @@ async function sendToAll() {
   mainInput.value = '';
 }
 
+// 复制所有模型的最新回复
+async function copyAllLatestMessages() {
+  const results = [];
+  
+  for (const name of activeModels) {
+    const site = sites.find(s => s.name === name);
+    const wrapper = webviewMap.get(name);
+    if (!wrapper) continue;
+    
+    const webview = wrapper.querySelector('webview');
+    if (!webview) continue;
+
+    try {
+      // 尝试多种方式提取最后一条消息
+      const defaultSelector = '[class*="message"], [class*="Message"], [class*="chat-item"]';
+      const messageSelector = site.messageSelector || defaultSelector;
+      const extractScript = `
+        (function() {
+          // 尝试多种通用的消息选择器
+          const selectors = [
+            ${JSON.stringify(messageSelector)},
+            '[role="article"]',
+            '[class*="assistant"]',
+            '[class*="response"]',
+            '[class*="answer"]'
+          ];
+          
+          let lastMessage = null;
+          
+          // 方法1: 查找所有消息元素，取最后一个
+          for (const selector of selectors) {
+            try {
+              const messages = Array.from(document.querySelectorAll(selector));
+              if (messages.length > 0) {
+                // 过滤掉输入框和用户消息，只保留AI回复
+                const aiMessages = messages.filter(msg => {
+                  const text = (msg.textContent || '').toLowerCase();
+                  const html = (msg.innerHTML || '').toLowerCase();
+                  // 排除输入框和用户消息
+                  if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
+                    return false;
+                  }
+                  // 尝试识别AI回复（通常包含更多内容）
+                  return text.length > 20 || html.includes('assistant') || html.includes('model');
+                });
+                
+                if (aiMessages.length > 0) {
+                  lastMessage = aiMessages[aiMessages.length - 1];
+                  break;
+                }
+              }
+            } catch (e) {
+              continue;
+            }
+          }
+          
+          // 方法2: 如果没找到，尝试查找所有包含文本的div，取最后一个较长的
+          if (!lastMessage) {
+            const allDivs = Array.from(document.querySelectorAll('div'));
+            const candidates = allDivs.filter(div => {
+              const text = (div.textContent || '').trim();
+              // 排除输入框、按钮等
+              if (div.querySelector('textarea') || div.querySelector('button') || 
+                  div.contentEditable === 'true' || text.length < 50) {
+                return false;
+              }
+              return true;
+            });
+            
+            if (candidates.length > 0) {
+              // 按文本长度排序，取最长的（通常是最后一条回复）
+              candidates.sort((a, b) => {
+                const aLen = (a.textContent || '').length;
+                const bLen = (b.textContent || '').length;
+                return bLen - aLen;
+              });
+              lastMessage = candidates[0];
+            }
+          }
+          
+          if (lastMessage) {
+            // 提取纯文本，去除多余空白
+            let text = lastMessage.textContent || lastMessage.innerText || '';
+            text = text.replace(/\\s+/g, ' ').trim();
+            // 限制长度，避免过长
+            if (text.length > 5000) {
+              text = text.substring(0, 5000) + '...';
+            }
+            return text;
+          }
+          
+          return null;
+        })();
+      `;
+      
+      const messageText = await webview.executeJavaScript(extractScript);
+      
+      if (messageText && messageText.trim()) {
+        results.push({
+          name: name,
+          text: messageText.trim()
+        });
+      }
+    } catch (err) {
+      console.error(`[${name}] Failed to extract message:`, err);
+    }
+  }
+  
+  // 格式化并复制到剪切板
+  if (results.length === 0) {
+    alert('未找到任何消息，请确保模型已生成回复');
+    return;
+  }
+  
+  const formattedText = results.map(r => `${r.name}:\n${r.text}`).join('\n\n');
+  
+  // 使用 Clipboard API 复制
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(formattedText);
+      // 显示成功提示
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = '✓';
+      copyBtn.style.backgroundColor = '#28a745';
+      setTimeout(() => {
+        copyBtn.textContent = originalText;
+        copyBtn.style.backgroundColor = '#6c757d';
+      }, 1000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      // 降级方案：使用传统方法
+      fallbackCopyTextToClipboard(formattedText);
+    }
+  } else {
+    // 降级方案
+    fallbackCopyTextToClipboard(formattedText);
+  }
+}
+
+// 降级复制方案
+function fallbackCopyTextToClipboard(text) {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.left = '-999999px';
+  textArea.style.top = '-999999px';
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = '✓';
+      copyBtn.style.backgroundColor = '#28a745';
+      setTimeout(() => {
+        copyBtn.textContent = originalText;
+        copyBtn.style.backgroundColor = '#6c757d';
+      }, 1000);
+    } else {
+      alert('复制失败，请手动复制');
+    }
+  } catch (err) {
+    console.error('Fallback copy failed:', err);
+    alert('复制失败，请手动复制');
+  }
+  
+  document.body.removeChild(textArea);
+}
+
 sendBtn.addEventListener('click', sendToAll);
+copyBtn.addEventListener('click', copyAllLatestMessages);
 
 mainInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {

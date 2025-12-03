@@ -20,6 +20,7 @@ body, html {
   background-color: #ddd;
   overflow: hidden;
   display: none; 
+  position: relative; /* 为最大化定位做准备 */
 }
 
 .grid-mode-1 {
@@ -42,6 +43,11 @@ body, html {
 
 .grid-mode-4 {
   display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.grid-mode-4.grid {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
 }
@@ -51,6 +57,20 @@ body, html {
   flex-direction: column;
   background: white;
   position: relative;
+  width: 100%;
+  height: 100%;
+  transition: all 0.2s ease-in-out;
+}
+
+/* 最大化样式 */
+.webview-grid.has-maximized .webview-wrapper:not(.maximized) {
+  display: none !important;
+}
+
+.webview-grid.has-maximized .webview-wrapper.maximized {
+  display: flex !important;
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
   width: 100%;
   height: 100%;
 }
@@ -73,7 +93,7 @@ body, html {
   gap: 8px;
 }
 
-.reload-btn {
+.icon-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -83,9 +103,10 @@ body, html {
   transition: color 0.2s;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
-.reload-btn:hover {
+.icon-btn:hover {
   color: #007bff;
 }
 
@@ -124,6 +145,29 @@ textarea.main-input {
   box-sizing: border-box;
 }
 
+button.copy-btn {
+  width: 50px;
+  height: 100%;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button.copy-btn:hover {
+  background-color: #5a6268;
+}
+
+button.copy-btn:active {
+  background-color: #484f54;
+}
+
 button.send-btn {
   width: 100px;
   height: 100%;
@@ -145,6 +189,13 @@ button.send-btn:active {
   background-color: #004085;
 }
 
+.selector-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
 .model-selector {
   display: flex;
   flex-wrap: wrap;
@@ -152,6 +203,7 @@ button.send-btn:active {
   font-size: 14px;
   color: #333;
   user-select: none;
+  flex: 1;
 }
 
 .model-selector label {
@@ -159,6 +211,34 @@ button.send-btn:active {
   align-items: center;
   gap: 5px;
   cursor: pointer;
+}
+
+.layout-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.layout-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 8px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+}
+
+.layout-btn:hover {
+  background-color: #5a6268;
+}
+
+.layout-btn:active {
+  background-color: #484f54;
 }
 
 .status-indicator {

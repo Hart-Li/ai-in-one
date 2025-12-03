@@ -4,14 +4,16 @@ module.exports = [
     url: 'https://chat.deepseek.com/',
     inputSelector: 'textarea#chat-input, textarea', 
     buttonSelector: null, 
-    submitType: 'enter', 
+    submitType: 'enter',
+    messageSelector: '[class*="message"], [class*="Message"], [class*="chat-item"]', // 消息容器选择器
   },
   {
     name: '通义千问 (Qwen)',
     url: 'https://tongyi.aliyun.com/qianwen/',
     inputSelector: 'textarea',
     buttonSelector: 'button[class*="ant-btn"]', 
-    submitType: 'click', 
+    submitType: 'click',
+    messageSelector: '[class*="message"], [class*="Message"], [class*="chat-item"], [class*="conversation"]',
   },
   {
     name: 'Kimi (Moonshot)',
@@ -19,6 +21,7 @@ module.exports = [
     inputSelector: 'div[contenteditable="true"]', 
     buttonSelector: 'div[class*="sendButton"], button[class*="sendButton"]', 
     submitType: 'click',
+    messageSelector: '[class*="message"], [class*="Message"], [class*="chat-item"], [class*="bubble"]',
   },
   {
     name: '字节豆包',
@@ -26,6 +29,7 @@ module.exports = [
     inputSelector: 'div[contenteditable="true"], textarea',
     buttonSelector: 'button[class*="send-btn"]',
     submitType: 'click',
+    messageSelector: '[class*="message"], [class*="Message"], [class*="chat-item"], [class*="bubble"]',
   },
   {
     name: '文心一言',
@@ -34,6 +38,7 @@ module.exports = [
     inputSelector: '#erp-text-input, div.yc-editor, div[contenteditable="true"]', 
     buttonSelector: 'div[class*="send-btn"], button[class*="send"]',
     submitType: 'click',
+    messageSelector: '[class*="message"], [class*="Message"], [class*="chat-item"], [class*="content"]',
   },
   {
     name: '腾讯元宝',
@@ -41,6 +46,7 @@ module.exports = [
     inputSelector: 'div[contenteditable="true"]',
     buttonSelector: 'div[class*="send-btn"], button[class*="send"]',
     submitType: 'click',
+    messageSelector: '[class*="message"], [class*="Message"], [class*="chat-item"], [class*="bubble"]',
   },
   {
     name: '知乎直答',
@@ -48,6 +54,7 @@ module.exports = [
     inputSelector: 'textarea, div[contenteditable="true"]',
     buttonSelector: null,
     submitType: 'enter',
+    messageSelector: '[class*="message"], [class*="Message"], [class*="answer"], [class*="content"]',
   },
   {
     name: 'Google Gemini (需科学上网)',
@@ -55,6 +62,7 @@ module.exports = [
     inputSelector: 'div[contenteditable="true"]',
     buttonSelector: 'button[class*="send-button"]',
     submitType: 'click',
+    messageSelector: '[class*="message"], [class*="Message"], [class*="model-response"]',
   },
   {
     name: 'ChatGPT (需科学上网)',
@@ -62,5 +70,6 @@ module.exports = [
     inputSelector: '#prompt-textarea',
     buttonSelector: 'button[data-testid="send-button"]',
     submitType: 'click',
+    messageSelector: '[class*="message"], [data-message-author-role="assistant"]',
   }
 ];
