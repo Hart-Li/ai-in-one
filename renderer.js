@@ -10,8 +10,8 @@ const MAX_SELECTED = 4;
 let activeModels = []; 
 const webviewMap = new Map(); 
 
-// 初始化 Checkbox (默认前4个)
-const defaultNames = sites.slice(0, 4).map(s => s.name);
+// 初始化 Checkbox (默认选中 DeepSeek 和 Qwen)
+const defaultNames = ['DeepSeek', '通义千问 (Qwen)'];
 activeModels = [...defaultNames];
 
 sites.forEach(site => {

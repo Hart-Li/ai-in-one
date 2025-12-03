@@ -35,14 +35,14 @@
 | 模型名称 | 网址 | 说明 |
 | :--- | :--- | :--- |
 | **DeepSeek** | chat.deepseek.com | 深度求索 |
-| **通义千问** | tongyi.aliyun.com | 阿里 Qwen |
+| **通义千问** | tongyi.aliyun.com | 阿里 Qwen，无需登录 |
 | **Kimi** | kimi.moonshot.cn | 月之暗面 |
-| **字节豆包** | doubao.com | 字节跳动 |
+| **字节豆包** | doubao.com | 字节跳动，无需登录 |
 | **文心一言** | yiyan.baidu.com | 百度 ERNIE |
 | **腾讯元宝** | yuanbao.tencent.com | 腾讯 Hunyuan |
 | **知乎直答** | zhida.zhihu.com | 知乎搜索 AI |
-| **Google Gemini** | gemini.google.com | *需科学上网* |
-| **ChatGPT** | chatgpt.com | *需科学上网* |
+| **Google Gemini** | gemini.google.com | *需科学上网*，无需登录 |
+| **ChatGPT** | chatgpt.com | *需科学上网*，无需登录 |
 
 ---
 
@@ -110,8 +110,9 @@ npm run build:win
 ## ⚠️ 注意事项
 
 1.  **账号登录**：本应用仅作为网页聚合器，不提供账号服务。你需要自行在各个 AI 官网登录你的账号。
-2.  **网络环境**：部分国外模型（ChatGPT, Gemini）需要特定的网络环境才能访问。
-3.  **页面兼容性**：由于 AI 网站更新频繁，如果遇到无法输入或发送的情况，可能需要更新 `sites.js` 中的 DOM 选择器。
+2.  **隐私安全**：本应用不远程存储用户任何信息，无任何安全风险，只在电脑本地记录登录状态，确保你的账号和数据安全。
+3.  **网络环境**：部分国外模型（ChatGPT, Gemini）需要特定的网络环境才能访问。
+4.  **页面兼容性**：由于 AI 网站更新频繁，如果遇到无法输入或发送的情况，可能需要更新 `sites.js` 中的 DOM 选择器。
 
 ---
 

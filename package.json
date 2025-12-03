@@ -8,7 +8,9 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win"
+    "build:win": "electron-builder --win --x64",
+    "build:win:x64": "electron-builder --win --x64",
+    "build:win:arm64": "electron-builder --win --arm64"
   },
   "build": {
     "appId": "com.hartli.aiinone",
@@ -26,7 +28,16 @@
       "target": [
         "nsis",
         "portable"
-      ]
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "defaultArch": "x64"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     },
     "linux": {
       "target": [
