@@ -66,7 +66,17 @@ function getOrCreateWebviewWrapper(site) {
   if (reloadBtn) {
       reloadBtn.onclick = () => {
           const webview = wrapper.querySelector('webview');
-          if (webview) webview.reload();
+          if (webview) {
+              // 获取当前URL，刷新到当前页面而不是首页
+              const currentUrl = webview.getURL();
+              if (currentUrl && currentUrl !== 'about:blank' && currentUrl !== site.url) {
+                  // 如果当前URL与初始URL不同，刷新到当前URL
+                  webview.src = currentUrl;
+              } else {
+                  // 否则使用reload（会保持当前页面）
+                  webview.reload();
+              }
+          }
       };
   }
   
@@ -360,6 +370,8 @@ async function sendToAll() {
 
   await Promise.all(promises);
   mainInput.value = '';
+  // 发送完成后聚焦到输入框
+  mainInput.focus();
 }
 
 // 复制所有模型的最新回复
@@ -375,87 +387,221 @@ async function copyAllLatestMessages() {
     if (!webview) continue;
 
     try {
-      // 尝试多种方式提取最后一条消息
-      const defaultSelector = '[class*="message"], [class*="Message"], [class*="chat-item"]';
-      const messageSelector = site.messageSelector || defaultSelector;
-      const extractScript = `
-        (function() {
-          // 尝试多种通用的消息选择器
-          const selectors = [
-            ${JSON.stringify(messageSelector)},
-            '[role="article"]',
-            '[class*="assistant"]',
-            '[class*="response"]',
-            '[class*="answer"]'
-          ];
-          
-          let lastMessage = null;
-          
-          // 方法1: 查找所有消息元素，取最后一个
-          for (const selector of selectors) {
-            try {
-              const messages = Array.from(document.querySelectorAll(selector));
-              if (messages.length > 0) {
-                // 过滤掉输入框和用户消息，只保留AI回复
-                const aiMessages = messages.filter(msg => {
-                  const text = (msg.textContent || '').toLowerCase();
-                  const html = (msg.innerHTML || '').toLowerCase();
-                  // 排除输入框和用户消息
-                  if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
-                    return false;
-                  }
-                  // 尝试识别AI回复（通常包含更多内容）
-                  return text.length > 20 || html.includes('assistant') || html.includes('model');
-                });
-                
-                if (aiMessages.length > 0) {
-                  lastMessage = aiMessages[aiMessages.length - 1];
-                  break;
-                }
+      let extractScript = '';
+      
+      // 为每个模型定制提取逻辑
+      if (name === '通义千问 (Qwen)') {
+        // Qwen: 提取最后一条消息的正文内容，排除标题行（如 Qwen3-Max20:00:39）
+        extractScript = `
+          (function() {
+            // 查找所有消息容器
+            const messages = Array.from(document.querySelectorAll('[class*="message"], [class*="Message"], [class*="conversation"]'));
+            if (messages.length === 0) return null;
+            
+            // 获取最后一条消息
+            const lastMsg = messages[messages.length - 1];
+            
+            // 查找消息内容区域，排除标题和时间戳
+            const contentArea = lastMsg.querySelector('[class*="content"], [class*="text"], [class*="body"]') || lastMsg;
+            
+            // 提取文本，排除第一行（通常是标题）
+            let text = contentArea.textContent || contentArea.innerText || '';
+            const lines = text.split('\\n').filter(line => {
+              const trimmed = line.trim();
+              // 排除时间戳格式的行（如 Qwen3-Max20:00:39）
+              if (/^[A-Za-z0-9-]+\\d{2}:\\d{2}:\\d{2}$/.test(trimmed)) {
+                return false;
               }
-            } catch (e) {
-              continue;
-            }
-          }
-          
-          // 方法2: 如果没找到，尝试查找所有包含文本的div，取最后一个较长的
-          if (!lastMessage) {
-            const allDivs = Array.from(document.querySelectorAll('div'));
-            const candidates = allDivs.filter(div => {
-              const text = (div.textContent || '').trim();
-              // 排除输入框、按钮等
-              if (div.querySelector('textarea') || div.querySelector('button') || 
-                  div.contentEditable === 'true' || text.length < 50) {
+              // 排除空行
+              return trimmed.length > 0;
+            });
+            
+            text = lines.join('\\n').trim();
+            return text || null;
+          })();
+        `;
+      } else if (name === 'Kimi (Moonshot)') {
+        // Kimi: 查找最后一条AI回复
+        extractScript = `
+          (function() {
+            // Kimi 的消息通常在特定的容器中
+            const messages = Array.from(document.querySelectorAll('[class*="bubble"], [class*="message"], [class*="chat-item"]'));
+            if (messages.length === 0) return null;
+            
+            // 过滤出AI回复（通常不包含输入框）
+            const aiMessages = messages.filter(msg => {
+              if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
+                return false;
+              }
+              // 查找包含AI回复标识的元素
+              const text = msg.textContent || '';
+              return text.length > 20;
+            });
+            
+            if (aiMessages.length === 0) return null;
+            
+            const lastMsg = aiMessages[aiMessages.length - 1];
+            let text = lastMsg.textContent || lastMsg.innerText || '';
+            text = text.replace(/\\s+/g, ' ').trim();
+            return text || null;
+          })();
+        `;
+      } else if (name === '文心一言') {
+        // 文心一言: 获取最后一条回复（不是第一条）
+        extractScript = `
+          (function() {
+            // 查找所有消息容器，按DOM顺序获取最后一个
+            const messages = Array.from(document.querySelectorAll('[class*="message"], [class*="Message"], [class*="content"], [class*="chat-item"]'));
+            if (messages.length === 0) return null;
+            
+            // 过滤出AI回复
+            const aiMessages = messages.filter(msg => {
+              if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
+                return false;
+              }
+              const text = msg.textContent || '';
+              return text.length > 20;
+            });
+            
+            if (aiMessages.length === 0) return null;
+            
+            // 获取最后一个（最新的）消息
+            const lastMsg = aiMessages[aiMessages.length - 1];
+            let text = lastMsg.textContent || lastMsg.innerText || '';
+            text = text.replace(/\\s+/g, ' ').trim();
+            return text || null;
+          })();
+        `;
+      } else if (name === '字节豆包') {
+        // 字节豆包: 只复制内容部分，排除其他元素
+        extractScript = `
+          (function() {
+            const messages = Array.from(document.querySelectorAll('[class*="message"], [class*="bubble"], [class*="chat-item"]'));
+            if (messages.length === 0) return null;
+            
+            const aiMessages = messages.filter(msg => {
+              if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
                 return false;
               }
               return true;
             });
             
-            if (candidates.length > 0) {
-              // 按文本长度排序，取最长的（通常是最后一条回复）
-              candidates.sort((a, b) => {
-                const aLen = (a.textContent || '').length;
-                const bLen = (b.textContent || '').length;
-                return bLen - aLen;
-              });
-              lastMessage = candidates[0];
-            }
-          }
-          
-          if (lastMessage) {
-            // 提取纯文本，去除多余空白
-            let text = lastMessage.textContent || lastMessage.innerText || '';
+            if (aiMessages.length === 0) return null;
+            
+            const lastMsg = aiMessages[aiMessages.length - 1];
+            // 查找内容区域，排除按钮、时间戳等
+            const contentArea = lastMsg.querySelector('[class*="content"], [class*="text"], [class*="body"]') || lastMsg;
+            
+            // 克隆节点以移除不需要的元素
+            const clone = contentArea.cloneNode(true);
+            // 移除按钮、时间戳等
+            clone.querySelectorAll('button, [class*="time"], [class*="action"], [class*="toolbar"]').forEach(el => el.remove());
+            
+            let text = clone.textContent || clone.innerText || '';
             text = text.replace(/\\s+/g, ' ').trim();
-            // 限制长度，避免过长
-            if (text.length > 5000) {
-              text = text.substring(0, 5000) + '...';
+            return text || null;
+          })();
+        `;
+      } else if (name === '知乎直答') {
+        // 知乎直答: 只复制内容部分
+        extractScript = `
+          (function() {
+            const messages = Array.from(document.querySelectorAll('[class*="answer"], [class*="content"], [class*="message"]'));
+            if (messages.length === 0) return null;
+            
+            const aiMessages = messages.filter(msg => {
+              if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
+                return false;
+              }
+              return true;
+            });
+            
+            if (aiMessages.length === 0) return null;
+            
+            const lastMsg = aiMessages[aiMessages.length - 1];
+            // 查找内容区域
+            const contentArea = lastMsg.querySelector('[class*="content"], [class*="text"], [class*="body"]') || lastMsg;
+            
+            // 移除不需要的元素
+            const clone = contentArea.cloneNode(true);
+            clone.querySelectorAll('button, [class*="action"], [class*="toolbar"], [class*="meta"]').forEach(el => el.remove());
+            
+            let text = clone.textContent || clone.innerText || '';
+            text = text.replace(/\\s+/g, ' ').trim();
+            return text || null;
+          })();
+        `;
+      } else if (name === 'Google Gemini (需科学上网)') {
+        // Gemini: 查找正确的消息区域
+        extractScript = `
+          (function() {
+            // Gemini 的消息通常在 [data-message-author-role="model"] 或类似的选择器中
+            const messages = Array.from(document.querySelectorAll('[data-message-author-role="model"], [class*="model-response"], [class*="message"]'));
+            if (messages.length === 0) return null;
+            
+            // 获取最后一个模型回复
+            const lastMsg = messages[messages.length - 1];
+            
+            // 查找内容区域
+            const contentArea = lastMsg.querySelector('[class*="content"], [class*="text"], [class*="markdown"]') || lastMsg;
+            
+            let text = contentArea.textContent || contentArea.innerText || '';
+            text = text.replace(/\\s+/g, ' ').trim();
+            return text || null;
+          })();
+        `;
+      } else {
+        // 其他模型使用通用逻辑
+        const defaultSelector = '[class*="message"], [class*="Message"], [class*="chat-item"]';
+        const messageSelector = site.messageSelector || defaultSelector;
+        extractScript = `
+          (function() {
+            const selectors = [
+              ${JSON.stringify(messageSelector)},
+              '[role="article"]',
+              '[class*="assistant"]',
+              '[class*="response"]',
+              '[class*="answer"]'
+            ];
+            
+            let lastMessage = null;
+            
+            for (const selector of selectors) {
+              try {
+                const messages = Array.from(document.querySelectorAll(selector));
+                if (messages.length > 0) {
+                  const aiMessages = messages.filter(msg => {
+                    if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
+                      return false;
+                    }
+                    const text = (msg.textContent || '').toLowerCase();
+                    const html = (msg.innerHTML || '').toLowerCase();
+                    return text.length > 20 || html.includes('assistant') || html.includes('model');
+                  });
+                  
+                  if (aiMessages.length > 0) {
+                    lastMessage = aiMessages[aiMessages.length - 1];
+                    break;
+                  }
+                }
+              } catch (e) {
+                continue;
+              }
             }
-            return text;
-          }
-          
-          return null;
-        })();
-      `;
+            
+            if (lastMessage) {
+              let text = lastMessage.textContent || lastMessage.innerText || '';
+              text = text.replace(/\\s+/g, ' ').trim();
+              if (text.length > 5000) {
+                text = text.substring(0, 5000) + '...';
+              }
+              return text;
+            }
+            
+            return null;
+          })();
+        `;
+      }
       
       const messageText = await webview.executeJavaScript(extractScript);
       
