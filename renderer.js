@@ -1,9 +1,9 @@
 const sites = require('./sites');
+const { shell } = require('electron');
 
 const grid = document.getElementById('webview-grid');
 const mainInput = document.getElementById('main-input');
 const sendBtn = document.getElementById('send-btn');
-const copyBtn = document.getElementById('copy-btn');
 const modelSelector = document.getElementById('model-selector');
 const layoutToggle = document.getElementById('layout-toggle');
 const layoutBtn = document.getElementById('layout-btn');
@@ -56,10 +56,26 @@ function getOrCreateWebviewWrapper(site) {
     <div class="header-controls">
         <span id="login-tip-${safeName}" style="font-size:10px; color:#d9534f; display:none;">需要登录?</span>
         <div class="status-indicator" id="status-${safeName}" title="灰色:加载中/未登录; 绿色:就绪"></div>
+        <button class="icon-btn open-browser-btn" title="在默认浏览器中打开">🌐</button>
         <button class="icon-btn maximize-btn" title="最大化/还原">⤢</button>
         <button class="icon-btn reload-btn" title="刷新页面">↻</button>
     </div>
   `;
+
+  // 绑定在浏览器中打开事件
+  const openBrowserBtn = header.querySelector('.open-browser-btn');
+  if (openBrowserBtn) {
+      openBrowserBtn.onclick = () => {
+          const webview = wrapper.querySelector('webview');
+          if (webview) {
+              const currentUrl = webview.getURL();
+              const urlToOpen = currentUrl && currentUrl !== 'about:blank' ? currentUrl : site.url;
+              shell.openExternal(urlToOpen).catch(err => {
+                  console.error(`Failed to open ${urlToOpen}:`, err);
+              });
+          }
+      };
+  }
 
   // 绑定刷新事件 (在创建时绑定，虽然 dom-ready 中也可以，但这里更统一)
   const reloadBtn = header.querySelector('.reload-btn');
@@ -374,313 +390,7 @@ async function sendToAll() {
   mainInput.focus();
 }
 
-// 复制所有模型的最新回复
-async function copyAllLatestMessages() {
-  const results = [];
-  
-  for (const name of activeModels) {
-    const site = sites.find(s => s.name === name);
-    const wrapper = webviewMap.get(name);
-    if (!wrapper) continue;
-    
-    const webview = wrapper.querySelector('webview');
-    if (!webview) continue;
-
-    try {
-      let extractScript = '';
-      
-      // 为每个模型定制提取逻辑
-      if (name === '通义千问 (Qwen)') {
-        // Qwen: 提取最后一条消息的正文内容，排除标题行（如 Qwen3-Max20:00:39）
-        extractScript = `
-          (function() {
-            // 查找所有消息容器
-            const messages = Array.from(document.querySelectorAll('[class*="message"], [class*="Message"], [class*="conversation"]'));
-            if (messages.length === 0) return null;
-            
-            // 获取最后一条消息
-            const lastMsg = messages[messages.length - 1];
-            
-            // 查找消息内容区域，排除标题和时间戳
-            const contentArea = lastMsg.querySelector('[class*="content"], [class*="text"], [class*="body"]') || lastMsg;
-            
-            // 提取文本，排除第一行（通常是标题）
-            let text = contentArea.textContent || contentArea.innerText || '';
-            const lines = text.split('\\n').filter(line => {
-              const trimmed = line.trim();
-              // 排除时间戳格式的行（如 Qwen3-Max20:00:39）
-              if (/^[A-Za-z0-9-]+\\d{2}:\\d{2}:\\d{2}$/.test(trimmed)) {
-                return false;
-              }
-              // 排除空行
-              return trimmed.length > 0;
-            });
-            
-            text = lines.join('\\n').trim();
-            return text || null;
-          })();
-        `;
-      } else if (name === 'Kimi (Moonshot)') {
-        // Kimi: 查找最后一条AI回复
-        extractScript = `
-          (function() {
-            // Kimi 的消息通常在特定的容器中
-            const messages = Array.from(document.querySelectorAll('[class*="bubble"], [class*="message"], [class*="chat-item"]'));
-            if (messages.length === 0) return null;
-            
-            // 过滤出AI回复（通常不包含输入框）
-            const aiMessages = messages.filter(msg => {
-              if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
-                return false;
-              }
-              // 查找包含AI回复标识的元素
-              const text = msg.textContent || '';
-              return text.length > 20;
-            });
-            
-            if (aiMessages.length === 0) return null;
-            
-            const lastMsg = aiMessages[aiMessages.length - 1];
-            let text = lastMsg.textContent || lastMsg.innerText || '';
-            text = text.replace(/\\s+/g, ' ').trim();
-            return text || null;
-          })();
-        `;
-      } else if (name === '文心一言') {
-        // 文心一言: 获取最后一条回复（不是第一条）
-        extractScript = `
-          (function() {
-            // 查找所有消息容器，按DOM顺序获取最后一个
-            const messages = Array.from(document.querySelectorAll('[class*="message"], [class*="Message"], [class*="content"], [class*="chat-item"]'));
-            if (messages.length === 0) return null;
-            
-            // 过滤出AI回复
-            const aiMessages = messages.filter(msg => {
-              if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
-                return false;
-              }
-              const text = msg.textContent || '';
-              return text.length > 20;
-            });
-            
-            if (aiMessages.length === 0) return null;
-            
-            // 获取最后一个（最新的）消息
-            const lastMsg = aiMessages[aiMessages.length - 1];
-            let text = lastMsg.textContent || lastMsg.innerText || '';
-            text = text.replace(/\\s+/g, ' ').trim();
-            return text || null;
-          })();
-        `;
-      } else if (name === '字节豆包') {
-        // 字节豆包: 只复制内容部分，排除其他元素
-        extractScript = `
-          (function() {
-            const messages = Array.from(document.querySelectorAll('[class*="message"], [class*="bubble"], [class*="chat-item"]'));
-            if (messages.length === 0) return null;
-            
-            const aiMessages = messages.filter(msg => {
-              if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
-                return false;
-              }
-              return true;
-            });
-            
-            if (aiMessages.length === 0) return null;
-            
-            const lastMsg = aiMessages[aiMessages.length - 1];
-            // 查找内容区域，排除按钮、时间戳等
-            const contentArea = lastMsg.querySelector('[class*="content"], [class*="text"], [class*="body"]') || lastMsg;
-            
-            // 克隆节点以移除不需要的元素
-            const clone = contentArea.cloneNode(true);
-            // 移除按钮、时间戳等
-            clone.querySelectorAll('button, [class*="time"], [class*="action"], [class*="toolbar"]').forEach(el => el.remove());
-            
-            let text = clone.textContent || clone.innerText || '';
-            text = text.replace(/\\s+/g, ' ').trim();
-            return text || null;
-          })();
-        `;
-      } else if (name === '知乎直答') {
-        // 知乎直答: 只复制内容部分
-        extractScript = `
-          (function() {
-            const messages = Array.from(document.querySelectorAll('[class*="answer"], [class*="content"], [class*="message"]'));
-            if (messages.length === 0) return null;
-            
-            const aiMessages = messages.filter(msg => {
-              if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
-                return false;
-              }
-              return true;
-            });
-            
-            if (aiMessages.length === 0) return null;
-            
-            const lastMsg = aiMessages[aiMessages.length - 1];
-            // 查找内容区域
-            const contentArea = lastMsg.querySelector('[class*="content"], [class*="text"], [class*="body"]') || lastMsg;
-            
-            // 移除不需要的元素
-            const clone = contentArea.cloneNode(true);
-            clone.querySelectorAll('button, [class*="action"], [class*="toolbar"], [class*="meta"]').forEach(el => el.remove());
-            
-            let text = clone.textContent || clone.innerText || '';
-            text = text.replace(/\\s+/g, ' ').trim();
-            return text || null;
-          })();
-        `;
-      } else if (name === 'Google Gemini (需科学上网)') {
-        // Gemini: 查找正确的消息区域
-        extractScript = `
-          (function() {
-            // Gemini 的消息通常在 [data-message-author-role="model"] 或类似的选择器中
-            const messages = Array.from(document.querySelectorAll('[data-message-author-role="model"], [class*="model-response"], [class*="message"]'));
-            if (messages.length === 0) return null;
-            
-            // 获取最后一个模型回复
-            const lastMsg = messages[messages.length - 1];
-            
-            // 查找内容区域
-            const contentArea = lastMsg.querySelector('[class*="content"], [class*="text"], [class*="markdown"]') || lastMsg;
-            
-            let text = contentArea.textContent || contentArea.innerText || '';
-            text = text.replace(/\\s+/g, ' ').trim();
-            return text || null;
-          })();
-        `;
-      } else {
-        // 其他模型使用通用逻辑
-        const defaultSelector = '[class*="message"], [class*="Message"], [class*="chat-item"]';
-        const messageSelector = site.messageSelector || defaultSelector;
-        extractScript = `
-          (function() {
-            const selectors = [
-              ${JSON.stringify(messageSelector)},
-              '[role="article"]',
-              '[class*="assistant"]',
-              '[class*="response"]',
-              '[class*="answer"]'
-            ];
-            
-            let lastMessage = null;
-            
-            for (const selector of selectors) {
-              try {
-                const messages = Array.from(document.querySelectorAll(selector));
-                if (messages.length > 0) {
-                  const aiMessages = messages.filter(msg => {
-                    if (msg.querySelector('textarea') || msg.querySelector('[contenteditable="true"]')) {
-                      return false;
-                    }
-                    const text = (msg.textContent || '').toLowerCase();
-                    const html = (msg.innerHTML || '').toLowerCase();
-                    return text.length > 20 || html.includes('assistant') || html.includes('model');
-                  });
-                  
-                  if (aiMessages.length > 0) {
-                    lastMessage = aiMessages[aiMessages.length - 1];
-                    break;
-                  }
-                }
-              } catch (e) {
-                continue;
-              }
-            }
-            
-            if (lastMessage) {
-              let text = lastMessage.textContent || lastMessage.innerText || '';
-              text = text.replace(/\\s+/g, ' ').trim();
-              if (text.length > 5000) {
-                text = text.substring(0, 5000) + '...';
-              }
-              return text;
-            }
-            
-            return null;
-          })();
-        `;
-      }
-      
-      const messageText = await webview.executeJavaScript(extractScript);
-      
-      if (messageText && messageText.trim()) {
-        results.push({
-          name: name,
-          text: messageText.trim()
-        });
-      }
-    } catch (err) {
-      console.error(`[${name}] Failed to extract message:`, err);
-    }
-  }
-  
-  // 格式化并复制到剪切板
-  if (results.length === 0) {
-    alert('未找到任何消息，请确保模型已生成回复');
-    return;
-  }
-  
-  const formattedText = results.map(r => `${r.name}:\n${r.text}`).join('\n\n');
-  
-  // 使用 Clipboard API 复制
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    try {
-      await navigator.clipboard.writeText(formattedText);
-      // 显示成功提示
-      const originalText = copyBtn.textContent;
-      copyBtn.textContent = '✓';
-      copyBtn.style.backgroundColor = '#28a745';
-      setTimeout(() => {
-        copyBtn.textContent = originalText;
-        copyBtn.style.backgroundColor = '#6c757d';
-      }, 1000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      // 降级方案：使用传统方法
-      fallbackCopyTextToClipboard(formattedText);
-    }
-  } else {
-    // 降级方案
-    fallbackCopyTextToClipboard(formattedText);
-  }
-}
-
-// 降级复制方案
-function fallbackCopyTextToClipboard(text) {
-  const textArea = document.createElement('textarea');
-  textArea.value = text;
-  textArea.style.position = 'fixed';
-  textArea.style.left = '-999999px';
-  textArea.style.top = '-999999px';
-  document.body.appendChild(textArea);
-  textArea.focus();
-  textArea.select();
-  
-  try {
-    const successful = document.execCommand('copy');
-    if (successful) {
-      const originalText = copyBtn.textContent;
-      copyBtn.textContent = '✓';
-      copyBtn.style.backgroundColor = '#28a745';
-      setTimeout(() => {
-        copyBtn.textContent = originalText;
-        copyBtn.style.backgroundColor = '#6c757d';
-      }, 1000);
-    } else {
-      alert('复制失败，请手动复制');
-    }
-  } catch (err) {
-    console.error('Fallback copy failed:', err);
-    alert('复制失败，请手动复制');
-  }
-  
-  document.body.removeChild(textArea);
-}
-
 sendBtn.addEventListener('click', sendToAll);
-copyBtn.addEventListener('click', copyAllLatestMessages);
 
 mainInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {

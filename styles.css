@@ -145,29 +145,6 @@ textarea.main-input {
   box-sizing: border-box;
 }
 
-button.copy-btn {
-  width: 50px;
-  height: 100%;
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 18px;
-  transition: background 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-button.copy-btn:hover {
-  background-color: #5a6268;
-}
-
-button.copy-btn:active {
-  background-color: #484f54;
-}
-
 button.send-btn {
   width: 100px;
   height: 100%;
