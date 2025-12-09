@@ -54,7 +54,7 @@
 
 可以直接下载预编译的安装包：
 
-**📦 [下载最新版本 (v1.0.0)](https://github.com/Hart-Li/ai-in-one/releases/tag/v1.0.0)**
+**📦 [下载最新版本 (v1.0.1)](https://github.com/Hart-Li/ai-in-one/releases/tag/v1.0.1)**
 
 支持 macOS (.dmg) 和 Windows (.exe) 平台。
 
